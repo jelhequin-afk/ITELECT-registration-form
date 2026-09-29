@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Makes the page look good on phones too -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student Registration</title>
+<style>
+  /* ============================================================
+     1. COLOR THEME
+     We define colors once here as "variables" (--something).
+     Change a value here and it updates everywhere it's used.
+  ============================================================ */
+  :root {
+    --bg1: #0f2027;
+    --bg2: #203a43;
+    --bg3: #2c5364;
+    --accent: #4fd1c5;      /* teal accent color for buttons/highlights */
+    --accent-glow: #4fd1c5aa;
+    --card-bg: rgba(255, 255, 255, 0.06);
+    --text: #eafaf8;
+    --muted: #9db3b0;
+    --error: #ff6b6b;
+    --radius: 14px;
+  }
+
+  /* Reset default browser spacing so our own spacing is predictable */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    color: var(--text);
+  }
+
+  /* ============================================================
+     INTRO ANIMATION OVERLAY
+  ============================================================ */
+  .intro-overlay {
+    position: fixed;
+    inset: 0;
+    background: #091318;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: clip-path 1s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.5s ease 0.8s;
+    clip-path: circle(150% at 50% 50%);
+  }
+
+  .intro-overlay.hide {
+    clip-path: circle(0% at 50% 50%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .intro-content {
+    text-align: center;
+    animation: introPop 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .intro-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, var(--accent), #1a2980);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 30px var(--accent-glow);
+    animation: pulseGlow 2s infinite alternate;
+  }
+
+  .intro-icon svg {
+    width: 42px;
+    height: 42px;
+    fill: #06231f;
+  }
+
+  .intro-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, #ffffff, var(--accent));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  .intro-subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .intro-loader {
+    width: 140px;
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    margin: 24px auto 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .intro-loader-bar {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: loadBar 1.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  @keyframes introPop {
+    from { opacity: 0; transform: scale(0.8) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes pulseGlow {
+    from { box-shadow: 0 0 20px var(--accent-glow); transform: scale(1); }
+    to { box-shadow: 0 0 40px var(--accent); transform: scale(1.05); }
+  }
+
+  @keyframes loadBar {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+  }
+
+  /* ============================================================
+     2. ANIMATED BACKGROUND
+     "background-size: 400% 400%" makes the gradient bigger than
+     the screen, then "gradientShift" slowly slides it around,
+     which is what creates the smooth moving-color effect.
+  ============================================================ */
+  body {
+    background: linear-gradient(-45deg, var(--bg1), var(--bg2), var(--bg3), #1a2980);
+    background-size: 400% 400%;
+    animation: gradientShift 18s ease infinite;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+    overflow-x: hidden;
+  }
+
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Floating soft blobs behind the card, purely decorative */
+  .blob {
+    position: fixed;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.35;
+    z-index: 0;
+    animation: float 12s ease-in-out infinite;
+  }
+  .blob.one   { background: var(--accent); top: -80px; left: -80px; }
+  .blob.two   { background: #6a5acd; bottom: -100px; right: -60px; animation-delay: -6s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    50%      { transform: translateY(30px) translateX(20px); }
+  }
+
+  /* ============================================================
+     3. THE FORM CARD
+     "backdrop-filter: blur()" gives the frosted-glass look.
+     The entrance animation (cardIn) makes it fade + slide up
+     once when the page first loads.
+  ============================================================ */
+  .card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 760px;
+    background: var(--card-bg);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(14px);
+    border-radius: var(--radius);
+    padding: 36px clamp(20px, 5vw, 48px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
+
+  .card.animate-in {
+    animation: cardIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(40px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card h1 {
+    font-size: clamp(22px, 4vw, 30px);
+    letter-spacing: 0.5px;
+  }
+  .card p.sub {
+    color: var(--muted);
+    margin-top: 6px;
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+
+  /* ============================================================
+     4. FORM LAYOUT
+     "grid" splits fields into 2 columns on wide screens.
+     "grid-column: 1 / -1" makes a field span BOTH columns
+     (used for address fields, which are long text areas).
+  ============================================================ */
+  .section-title {
+    grid-column: 1 / -1;
+    margin: 22px 0 4px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    padding-bottom: 6px;
+    opacity: 0;
+  }
+  .section-title:first-of-type { margin-top: 0; }
+
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 20px;
+  }
+
+  @media (max-width: 560px) {
+    form { grid-template-columns: 1fr; } /* stack into one column on phones */
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; position: relative; opacity: 0; }
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  label .req { color: var(--error); } /* asterisk for required fields */
+
+  /* Text inputs, selects, textareas share one look */
+  input, select, textarea {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 11px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 64px; }
+
+  /* Glow + slight lift when a field is focused = feels "alive" */
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+
+  ::placeholder { color: #7f9694; }
+
+  /* Staggered entrance for fields triggered after intro ends */
+  .card.animate-in .field, 
+  .card.animate-in .section-title {
+    animation: fadeIn 0.6s ease both;
+    animation-delay: var(--d, 0s);
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Custom styled radio buttons for Gender / Civil Status */
+  .radio-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 14px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    transition: all 0.25s ease;
+  }
+  .radio-group input { display: none; } /* hide the ugly native radio dot */
+  .radio-group input:checked + span {
+    color: #06231f;
+  }
+  .radio-group label:has(input:checked) {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 14px var(--accent-glow);
+  }
+
+  /* ADD THE NEW SELECT DROPDOWN STYLES HERE */
+  select option {
+    background-color: #2c5364;
+    color: #ffffff;
+  }
+
+  /* Photo upload drop zone */
+  .upload {
+    border: 2px dashed rgba(255,255,255,0.25);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    transition: border-color 0.25s ease, background 0.25s ease;
+  }
+  .upload:hover, .upload.dragover {
+    border-color: var(--accent);
+    background: rgba(79, 209, 197, 0.08);
+  }
+  .upload input { display: none; }
+  #photoPreview {
+    margin-top: 10px;
+    max-height: 90px;
+    border-radius: 8px;
+    display: none;
+  }
+
+  /* Inline error message under a field, shown by JS on bad input */
+  .error-msg {
+    font-size: 12px;
+    color: var(--error);
+    min-height: 14px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: all 0.2s ease;
+  }
+  .error-msg.show { opacity: 1; transform: translateY(0); }
+  .field.invalid input, .field.invalid select, .field.invalid textarea {
+    border-color: var(--error);
+    animation: shake 0.35s ease;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+
+  /* ============================================================
+     5. SUBMIT BUTTON
+     Gradient + a moving "shine" sweep on hover for a premium feel.
+  ============================================================ */
+  .actions { grid-column: 1 / -1; margin-top: 10px; }
+
+  button.submit-btn {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #06231f;
+    background: linear-gradient(90deg, var(--accent), #7ee8dc, var(--accent));
+    background-size: 200% auto;
+    cursor: pointer;
+    transition: background-position 0.5s ease, transform 0.15s ease;
+  }
+  button.submit-btn:hover { background-position: right center; transform: translateY(-2px); }
+  button.submit-btn:active { transform: translateY(0); }
+
+  /* Little spinner shown inside the button while "submitting" */
+  .spinner {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid #06231f55;
+    border-top-color: #06231f;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ============================================================
+     6. SUCCESS OVERLAY
+     Hidden by default (display:none). JS reveals it after
+     a fake "save" completes, with a pop-in checkmark animation.
+  ============================================================ */
+  .success-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 20, 20, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .success-overlay.show { display: flex; animation: fadeIn 0.3s ease; }
+  .success-box {
+    background: var(--card-bg);
+    border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(14px);
+    padding: 40px 48px;
+    border-radius: var(--radius);
+    text-align: center;
+    animation: cardIn 0.4s ease;
+  }
+  .checkmark {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    animation: pop 0.4s ease 0.1s both;
+  }
+  .checkmark svg { width: 34px; height: 34px; }
+  .checkmark path {
+    stroke: var(--accent);
+    stroke-width: 3;
+    fill: none;
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    animation: draw 0.5s ease 0.35s forwards;
+  }
+  @keyframes pop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+</style>
+</head>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ <!-- HTML -->
+
+<body>
+
+  <!-- Intro Screen Overlay -->
+  <div class="intro-overlay" id="introOverlay">
+    <div class="intro-content">
+      <div class="intro-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+      </div>
+      <div class="intro-title">Portal Access</div>
+      <div class="intro-subtitle">Initializing Registration Form</div>
+      <div class="intro-loader">
+        <div class="intro-loader-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decorative floating color blobs (purely visual, no data) -->
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+
+  <div class="card" id="mainCard">
+    <h1>Student Registration</h1>
+    <p class="sub">Fields mirror the <code>students</code> table — required columns are marked with *.</p>
+
+    <!-- 
+      novalidate: we do our own custom validation in JS below so we can
+      show pretty animated error messages instead of the plain browser ones.
+    -->
+    <form id="regForm" novalidate>
+
+      <!-- ============ ACCOUNT / IDENTIFIER ============ -->
+      <div class="section-title" style="--d:0.02s">Identifier</div>
+
+      <div class="field full" style="--d:0.04s">
+        <label>Student Number <span class="req">*</span></label>
+        <!-- maps to student_number VARCHAR(50) UNIQUE NOT NULL -->
+        <input type="text" name="student_number" placeholder="e.g. 2024-00123" required>
+        <div class="error-msg"></div>
+      </div>
+
+      <!-- ============ PERSONAL INFO ============ -->
+      <div class="section-title" style="--d:0.06s">Personal Information</div>
+
+      <div class="field" style="--d:0.08s">
+        <label>First Name <span class="req">*</span></label>
+        <input type="text" name="firstname" required>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.1s">
+        <label>Middle Name</label>
+        <!-- middlename is nullable in the table, so no "required" here -->
+        <input type="text" name="middlename">
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.12s">
+        <label>Last Name <span class="req">*</span></label>
+        <input type="text" name="lastname" required>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.14s">
+        <label>Suffix</label>
+        <input type="text" name="suffix" placeholder="Jr., Sr., III...">
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.16s">
+        <label>Gender <span class="req">*</span></label>
+        <!-- matches ENUM('MALE','FEMALE') in the schema -->
+        <div class="radio-group">
+          <label><input type="radio" name="gender" value="MALE" required><span>Male</span></label>
+          <label><input type="radio" name="gender" value="FEMALE"><span>Female</span></label>
+        </div>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.18s">
+        <label>Date of Birth <span class="req">*</span></label>
+        <input type="date" name="dob" required>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.2s">
+        <label>Civil Status <span class="req">*</span></label>
+        <select name="civil_status" required>
+          <option value="" disabled selected>Select...</option>
+          <option>Single</option>
+          <option>Married</option>
+          <option>Widowed</option>
+          <option>Separated</option>
+        </select>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.22s">
+        <label>Nationality <span class="req">*</span></label>
+        <input type="text" name="nationality" value="Filipino" required>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.24s">
+        <label>Religion</label>
+        <input type="text" name="religion">
+        <div class="error-msg"></div>
+      </div>
+
+      <!-- ============ CONTACT ============ -->
+      <div class="section-title" style="--d:0.26s">Contact Details</div>
+
+      <div class="field" style="--d:0.28s">
+        <label>Contact Number <span class="req">*</span></label>
+        <input type="tel" name="contact_number" placeholder="09xx xxx xxxx" required>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.3s">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="you@example.com">
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field full" style="--d:0.32s">
+        <label>Permanent Address <span class="req">*</span></label>
+        <textarea name="permanent_address" required></textarea>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field full" style="--d:0.34s">
+        <label>Current Address <span class="req">*</span></label>
+        <textarea name="current_address" required></textarea>
+        <div class="error-msg"></div>
+      </div>
+
+      <!-- ============ PHOTO ============ -->
+      <div class="section-title" style="--d:0.36s">Photo</div>
+      <div class="field full" style="--d:0.38s">
+        <!-- 
+          This uploads a file in the browser only. The "photo" column
+          in the table just stores a file PATH (VARCHAR 255) — actually
+          saving the image to a server is a backend job, not something
+          plain HTML/CSS/JS can do on its own.
+        -->
+        <label id="uploadLabel" class="upload" for="photoInput">
+          📷 Click or drag a photo here
+          <input type="file" id="photoInput" name="photo" accept="image/*">
+        </label>
+        <img id="photoPreview" alt="preview">
+        <div class="error-msg"></div>
+      </div>
+
+      <!-- ============ ENROLLMENT ============ -->
+      <div class="section-title" style="--d:0.4s">Current Enrollment</div>
+
+      <div class="field" style="--d:0.42s">
+        <label>Year Level</label>
+        <select name="current_year_level">
+          <option value="">Select...</option>
+          <option value="1">1st Year</option>
+          <option value="2">2nd Year</option>
+          <option value="3">3rd Year</option>
+          <option value="4">4th Year</option>
+        </select>
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="field" style="--d:0.44s">
+        <label>Section</label>
+        <input type="text" name="current_section" placeholder="e.g. MSA">
+        <div class="error-msg"></div>
+      </div>
+
+      <div class="actions" style="--d:0.46s">
+        <button type="submit" class="submit-btn">
+          <span class="btn-text">Register Student</span>
+          <div class="spinner"></div>
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Success popup, shown after a "successful" fake-submit -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-box">
+      <div class="checkmark">
+        <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"></path></svg>
+      </div>
+      <h2>Registered!</h2>
+      <p style="color:var(--muted); margin-top:6px; font-size:13px;">Student record captured successfully.</p>
+    </div>
+  </div>
+
+<script>
+  /* ============================================================
+     JAVASCRIPT — Intro Animation & Form Behavior
+  ============================================================ */
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const introOverlay = document.getElementById('introOverlay');
+    const mainCard = document.getElementById('mainCard');
+
+    // Trigger intro sequence on page load
+    setTimeout(() => {
+      introOverlay.classList.add('hide');
+      mainCard.classList.add('animate-in');
+    }, 2000); // Intro displays for 2 seconds before shrinking away
+  });
+
+  const form = document.getElementById('regForm');
+  const photoInput = document.getElementById('photoInput');
+  const photoPreview = document.getElementById('photoPreview');
+  const uploadLabel = document.getElementById('uploadLabel');
+
+  // --- Photo preview ---
+  function showPreview(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      photoPreview.src = e.target.result;
+      photoPreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+  photoInput.addEventListener('change', () => showPreview(photoInput.files[0]));
+
+  // Drag-and-drop styling + handling on the upload box
+  ['dragover', 'dragleave', 'drop'].forEach(evt => {
+    uploadLabel.addEventListener(evt, e => e.preventDefault());
+  });
+  uploadLabel.addEventListener('dragover', () => uploadLabel.classList.add('dragover'));
+  uploadLabel.addEventListener('dragleave', () => uploadLabel.classList.remove('dragover'));
+  uploadLabel.addEventListener('drop', e => {
+    uploadLabel.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) { photoInput.files = e.dataTransfer.files; showPreview(file); }
+  });
+
+  // --- Validation helper: marks a field invalid and shows a message ---
+  function setError(field, message) {
+    const errBox = field.querySelector('.error-msg');
+    if (message) {
+      field.classList.add('invalid');
+      errBox.textContent = message;
+      errBox.classList.add('show');
+    } else {
+      field.classList.remove('invalid');
+      errBox.textContent = '';
+      errBox.classList.remove('show');
+    }
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    let firstInvalid = null;
+
+    // Loop through every ".field" wrapper and check its required inputs
+    document.querySelectorAll('.field').forEach(field => {
+      const required = field.querySelector('[required]');
+      if (!required) { setError(field, ''); return; }
+
+      let value;
+      if (required.type === 'radio') {
+        value = field.querySelector('input[name="gender"]:checked');
+      } else {
+        value = required.value.trim();
+      }
+
+      if (!value) {
+        setError(field, 'This field is required');
+        if (!firstInvalid) firstInvalid = field;
+      } else {
+        setError(field, '');
+      }
+    });
+
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return; // stop here, don't "submit" until everything is filled
+    }
+
+    // --- Fake submit animation (swap button text for a spinner) ---
+    const btnText = form.querySelector('.btn-text');
+    const spinner = form.querySelector('.spinner');
+    btnText.style.display = 'none';
+    spinner.style.display = 'block';
+
+    setTimeout(() => {
+      spinner.style.display = 'none';
+      btnText.style.display = 'inline';
+      document.getElementById('successOverlay').classList.add('show');
+    }, 1100);
+  });
+
+  // Click anywhere on the success popup to dismiss it and reset the form
+  document.getElementById('successOverlay').addEventListener('click', () => {
+    document.getElementById('successOverlay').classList.remove('show');
+    form.reset();
+    photoPreview.style.display = 'none';
+  });
+</script>
+
+</body>
+</html>
